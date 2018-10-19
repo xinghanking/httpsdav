@@ -39,13 +39,13 @@ prepare_install() {
 #创建程序运行用户
 create_dav_user() {
     if ( ! id $DAV_USER >& /dev/null 2>&1 ); then
-   	    useradd -s /sbin/nologin -M $DAV_USER
-	    DAV_GROUP="$DAV_USER"
+        useradd -s /sbin/nologin -M $DAV_USER
+        DAV_GROUP="$DAV_USER"
     else
         DAV_GROUP=`id -g -n $DAV_USER`
-		DAV_GROUP=${DAV_GROUP[0]}
+        DAV_GROUP=${DAV_GROUP[0]}
     fi
-    chown -R $DAV_USER:$DAV_GROUP $DAV_PATH	
+    chown -R $DAV_USER:$DAV_GROUP $DAV_PATH
 }
 
 #安装条件检查函数
@@ -69,14 +69,14 @@ check_install_conditions() {
        echo '    yum -y install openssl'
        echo '安装openssl 或者给当前账号添加openssl的执行权限'
        install_exit
-   fi    
+   fi
 }
 
 #安装httpsdav函数
 httpsdav_install() {
     echo -e "\e[1m＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊\e[;36m 开始安装httpsdav \e[;0m＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊\n"
     chmod -R 700 $HTTPSDAV_ROOT    #给安装目录权限
-    
+
     echo -n "请输入你要启用的端口(默认：$DEFAULT_PORT)："
     checknum=3
     while [ $checknum -ge 0 ]
@@ -100,7 +100,7 @@ httpsdav_install() {
         let "checknum--"
         echo -n $note_text
     done
-	
+
     checknum=3
     note_text="请输入webdav目录的服务器路径(默认：$DAV_PATH): "
     while [ $checknum -ge 0 ]
@@ -112,12 +112,12 @@ httpsdav_install() {
         read -p $note_text webdav_path
         if [ -z $webdav_path ]; then
             mkdir -p $DAV_PATH
-			if [ "$USER" = "root" ]; then
-			    create_dav_user
-			fi
+            if [ "$USER" = "root" ]; then
+                create_dav_user
+            fi
             webdav_path="$DAV_PATH"
             chmod 700 $webdav_path
-            break	
+            break
         fi
         note_text="输入错误或没有rwx权限，请重新输入："
         webdav_root_path=`dirname $webdav_path`
@@ -151,7 +151,7 @@ httpsdav_install() {
         fi
         let "checknum--"
     done
-	
+
     read -p "请输入你要设置的身份认证登录名(默认:$DAV_USER): " wedav_login
     webdav_login=${webdav_login:=$DAV_USER}
     read -p "请设置访问密码: " webdavpwd
@@ -166,45 +166,57 @@ httpsdav_install() {
     echo -e "\n执行安装:\n"
 
     echo -n "    构建httpsdav的目录结构 ----------------------------------------"
+    if [ "$USER" = "root" ]; then
+        mkdir -p $HTTPSDAV_ROOT/sites/$DAV_USER
+        HTTPSDAV_ROOT="$HTTPSDAV_ROOT/sites/$DAV_USER"
+    fi
     mkdir -p $HTTPSDAV_ROOT/{bin,var,logs,run}
     mkdir -p $HTTPSDAV_ROOT/var/{subsys,dav}
-    mkdir -p $HTTPSDAV_ROOT/conf/davs
+    mkdir -p $HTTPSDAV_ROOT/conf/virtualhost
+    mkdir -p $HTTPSDAV_ROOT/conf/davs/$webdav_port
     echo -e $succ_txt
 
     echo -n "    创建用户登录身份认证文件 --------------------------------------"
-    auth_file="$HTTPSDAV_ROOT/conf/davs/.$dav_name"
-	if  ( ! $(htpasswd -nb $webdav_login $webdavpwd > $auth_file)>/dev/null 2>&1 ); then
-		echo "${webdav_login}:$(openssl passwd -crypt $webdavpwd)" > $auth_file
+    auth_file="$HTTPSDAV_ROOT/conf/davs/$webdav_port/.$dav_name"
+    if  ( ! $(htpasswd -nb $webdav_login $webdavpwd > $auth_file)>/dev/null 2>&1 ); then
+        echo "${webdav_login}:$(openssl passwd -crypt $webdavpwd)" > $auth_file
     fi
     echo -e $succ_txt
 
     echo -n "    生成SSL证书 ---------------------------------------------------"
     . $HTTPSDAV_ROOT/scripts/create_certs.sh > $HTTPSDAV_ROOT/logs/create_ssl.log 2>&1
-    echo -e $succ_txt 
+    echo -e $succ_txt
 
     echo -n "    构建httpsdav的配置文件 ----------------------------------------"
-    httpsdavconf="$HTTPSDAV_ROOT/conf/httpsdav.conf" 
+    httpsdavconf="$HTTPSDAV_ROOT/conf/httpsdav.conf"
     echo "ServerName $HOSTNAME" > $httpsdavconf
     echo "Listen $webdav_port" >> $httpsdavconf
     echo "User $DAV_USER" >> $httpsdavconf
     echo "Group $DAV_GROUP" >> $httpsdavconf
-    echo "<VirtualHost $HOST_IP:$webdav_port>" >> $httpsdavconf
-    cat $HTTPSDAV_ROOT/conf/.tpl/httpsdav.conf >> $httpsdavconf
+    echo "Include conf/httpd.conf" >> $httpsdavconf
+
+    virtualhostconf="$HTTPSDAV_ROOT/conf/virtualhost/${webdav_port}.conf"
+    echo "<VirtualHost $HOST_IP:$webdav_port>" >> $virtualhostconf
+    cat $HTTPSDAV_ROOT/conf/.tpl/ssl.conf >> $virtualhostconf
+    echo "    Include conf/davs/$webdav_port/*.conf" >> $virtualhostconf
+    echo "</VirtualHost>" >> $virtualhostconf
     echo -e $succ_txt
 
     echo -n "    创建本次安装httpsdav服务的第一个webdav站点 --------------------"
     webdav_name=${dav_name:='webdav'}
-    echo "Alias /$webdav_name \"$webdav_path\"" > $HTTPSDAV_ROOT/conf/davs/$dav_name.conf
-    echo "<Directory \"$webdav_path\">" >> $HTTPSDAV_ROOT/conf/davs/$dav_name.conf
-    echo "   AuthUserFile \"conf/davs/.$dav_name\"" >> $HTTPSDAV_ROOT/conf/davs/$dav_name.conf
-    cat $HTTPSDAV_ROOT/conf/.tpl/webdav.conf >> $HTTPSDAV_ROOT/conf/davs/$dav_name.conf
+    davconf="$HTTPSDAV_ROOT/conf/davs/$webdav_port/$dav_name.conf
+    echo "Alias /$webdav_name \"$webdav_path\"" > $davconf
+    echo "<Directory \"$webdav_path\">" >> $davconf
+    echo "   AuthUserFile \"conf/davs/.$dav_name\"" >> $davconf
+    cat $HTTPSDAV_ROOT/conf/.tpl/webdav.conf >> $davconf
+    echo 
     httpd_path=`which httpd`
     httpd_path=${httpd_path%%:*}
     rm -fr $HTTPSDAV_ROOT/bin/httpsdav
     ln -s $httpd_path $HTTPSDAV_ROOT/bin/httpsdav
     echo -e $succ_txt
 
-    echo -e -n "\n启动你的webdav站点 ------------------------"	                                 
+    echo -e -n "\n启动你的webdav站点 ------------------------"
     $HTTPSDAV_ROOT/bin/httpsdav -C "ServerRoot $HTTPSDAV_ROOT" -f $HTTPSDAV_ROOT/conf/httpsdav.conf --pidfile=$HTTPSDAV_ROOT/run/httpsdav.pid
     echo -e "\e[5;32m 成功！\e[25m\n"
     mv $HTTPSDAV_ROOT/conf/.tpl/systemctl_httpsdav.sh $HTTPSDAV_ROOT/systemctl_httpsdav.sh
@@ -223,7 +235,6 @@ httpsdav_install() {
     echo "    如果你有安装中遇到什么问题或有什么建议和需求，或者使用httpsdav中遇到了什么问题"
     echo "    可以联系我：刘重量;  Email:13439694341@qq.com"
     echo -e "\n\e[1;35m＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊ \e[;32m 祝你生活愉快 \e[;35m＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊\e[0m\n\n"
-    rm -fr $HTTPSDAV_ROOT/install.sh
     return 0
 }
 

@@ -32,9 +32,10 @@ openssl verify -CAfile $CERTS_DIR/ca/webdavCA.crt server.crt
 cd $CERTS_DIR/client
 openssl genrsa -out client.key 2048
 openssl req -utf8 -new -key client.key -subj "/C=CN/ST=BeiJing/L=HaiDian/O=BeyondSoft/OU=rdqa/CN=$USER/emailAddress=$USER@{HOSTNAME}" -out client.csr
-openssl ca -utf8 -config $WEBDAV_ROOT/conf/openssl.cnf -in client.csr -cert $CERTS_DIR/ca/webdavCA.crt -keyfile $CERTS_DIR/ca/webdavCA.key -days 3650 -out webdavClient.crt <<EOF
+openssl x509 -req -in client.csr -signkey client.key -CA $CERTS_DIR/ca/webdavCA.crt -CAkey $CERTS_DIR/ca/webdavCA.key -CAcreateserial -days 3650 -out webdavClient.crt <<EOF
 y
 y
 EOF
 openssl verify -CAfile $CERTS_DIR/ca/webdavCA.crt webdavClient.crt
+#openssl pkcs12 -export -in client.crt -inkey client.key -out webdavclient.pfx
 rm -fr $CERTS_DIR/tmp $WEBDAV_ROOT/conf/openssl.cnf
