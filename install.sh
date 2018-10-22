@@ -264,8 +264,13 @@ httpsdav_install() {
     echo -e $succ_txt
 
     echo -e -n "\n启动你的webdav站点 ------------------------"
-    su $DAV_USER -c "$HTTPSDAV_ROOT/bin/httpsdav -d $HTTPSDAV_ROOT -f $HTTPSDAV_ROOT/conf/httpsdav.conf -k start"
-    echo -e "\e[5;32m 成功！\e[25m\n"
+    cmdstart="$HTTPSDAV_ROOT/bin/httpsdav -d $HTTPSDAV_ROOT -f $HTTPSDAV_ROOT/conf/httpsdav.conf -k start"
+    if ( su $DAV_USER -c "$cmdstart" >& /dev/null 1>&2 ) || ( $cmdstart >& /dev/null 1>&2 ); then 
+        echo -e "\e[5;32m 成功！\e[25m\n"
+    else
+        echo -e "\e[33m[\e[31m 失败 \e[33m]\e[0m"
+        install_exit
+    fi
     mv $HTTPSDAV_ROOT/conf/.tpl/systemctl_httpsdav.sh $HTTPSDAV_ROOT/systemctl_httpsdav.sh
 
     echo -e "\n\e[1;35m＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊\e[;32m 安装完成 \e[;35m＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊\n\e[;0m"
