@@ -21,6 +21,9 @@ if [ "$USER" = "root" ]; then
     USER_HOME="/home/webdav"
     DAV_USER="webdav"
     DAV_PATH="/home/webdav/mycloud"
+else
+    DAV_GROUP=(`id -g -n`)
+    DAV_GROUP=${DAV_GROUP[0]}
 fi
 APPACHE_VERSION=$(httpd -v|grep "Apache/2.4"|wc -l)
 if [ "$APPACHE_VERSION" -eq 0 ]; then
@@ -192,8 +195,8 @@ httpsdav_install() {
         echo -n $note_text
     done
 
-    read -p "请输入你要设置的身份认证登录名(默认:$DAV_USER): " wedav_login
-    webdav_login=${webdav_login:=$DAV_USER}
+    read -p "请输入你要设置的身份认证登录名(默认:$DAV_USER): " webdav_login
+    webdav_login=${webdav_login:-$DAV_USER}
     read -p "请设置访问密码: " webdavpwd
     if test -z $webdavpwd
     then
@@ -265,7 +268,13 @@ httpsdav_install() {
 
     echo -e -n "\n启动你的webdav站点 ------------------------"
     cmdstart="$HTTPSDAV_ROOT/bin/httpsdav -d $HTTPSDAV_ROOT -f $HTTPSDAV_ROOT/conf/httpsdav.conf -k start"
-    if ( su $DAV_USER -c "$cmdstart" >& /dev/null 1>&2 ) || ( $cmdstart >& /dev/null 1>&2 ); then 
+	REVAL=1
+	if [ "$USER" = "root" ]; then
+		(( su $DAV_USER -c "$cmdstart" >& /dev/null 1>&2 ) || ( $cmdstart >& /dev/null 1>&2 )) && REVAL=$?
+	else 
+		( $cmdstart >& /dev/null 1>&2 ) && REVAL=$?
+	fi
+    if [ $REVAL -eq 0 ]; then 
         echo -e "\e[5;32m 成功！\e[25m\n"
     else
         echo -e "\e[33m[\e[31m 失败 \e[33m]\e[0m"
