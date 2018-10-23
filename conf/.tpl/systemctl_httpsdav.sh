@@ -81,7 +81,7 @@ stop() {
 
 #重载函数
 reload() {
-    echo -n "重载$prog配置: "
+    echo -n "重载$prog配置:"
     if ( ! $httpsdav -d $HTTPSDAV_ROOT -f $HTTPSDAV_ROOT/conf/httpsdav.conf -t >& /dev/null 2>&1 ); then
         echo -e "\n\e[31m检查配置文件中存在错误，不能重新加载配置文件\e[0m"
         operate_exit
@@ -99,7 +99,7 @@ reload() {
 
 #重启函数
 restart() {
-    echo -n "重启$prog服务: "
+    echo -n "重启$prog服务:"
     if ( ! $httpsdav -d $HTTPSDAV_ROOT -f $HTTPSDAV_ROOT/conf/httpsdav.conf -t >& /dev/null 2>&1 ); then
         echo -e "\n\e[31m检查配置文件中存在错误，修改正确后再重启吧？\e[0m"
         operate_exit
