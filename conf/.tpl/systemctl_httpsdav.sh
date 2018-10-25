@@ -81,7 +81,7 @@ stop() {
 
 #重载函数
 reload() {
-    echo -n "重载$prog配置:"
+    echo -n "重载$prog配置: "
     if ( ! $httpsdav -d $HTTPSDAV_ROOT -f $HTTPSDAV_ROOT/conf/httpsdav.conf -t >& /dev/null 2>&1 ); then
         echo -e "\n\e[31m检查配置文件中存在错误，不能重新加载配置文件\e[0m"
         operate_exit
@@ -99,7 +99,7 @@ reload() {
 
 #重启函数
 restart() {
-    echo -n "重启$prog服务:"
+    echo -n "重启$prog服务: "
     if ( ! $httpsdav -d $HTTPSDAV_ROOT -f $HTTPSDAV_ROOT/conf/httpsdav.conf -t >& /dev/null 2>&1 ); then
         echo -e "\n\e[31m检查配置文件中存在错误，修改正确后再重启吧？\e[0m"
         operate_exit
@@ -115,13 +115,93 @@ restart() {
     return $RETVAL
 }
 
+#开启SSL函数
+start_ssl() {
+    RETVAL=1
+    echo -n "开启$prog的SSL功能:"
+    if [ -f $HTTPSDAV_ROOT/conf/.tpl/ssl.conf ]; then
+        cat $HTTPSDAV_ROOT/conf/.tpl/ssl.conf > $HTTPSDAV_ROOT/conf/ssl.conf 
+        $httpsdav $basecommand restart >& /dev/null 2>&1
+        RETVAL=$?
+    fi
+    if [[ $RETVAL -eq 0 ]]; then
+        show_success
+    else
+        show_fail
+    fi
+}
+
+#关闭ssl功能
+stop_ssl() {
+    RETVAL=1
+    echo -n "关闭$prog的SSL功能:"
+    if [ ! -f $HTTPSDAV_ROOT/conf/.tpl/ssl.conf ]; then
+        mkdir -p $HTTPSDAV_ROOT/conf/.tpl/
+        cat $HTTPSDAV_ROOT/conf/ssl.conf > $HTTPSDAV_ROOT/conf/.tpl/ssl.conf
+    fi
+    echo "    SSLEngine off" > $HTTPSDAV_ROOT/conf/ssl.conf
+    $httpsdav $basecommand restart >& /dev/null 2>&1
+    RETVAL=$?    
+    if [[ $RETVAL -eq 0 ]]; then
+        show_success
+    else
+        show_fail
+    fi
+}
+
+#开启ssl的双向认证功能
+start_client_verify() {
+    RETVAL=1
+    echo -n "开启$prog的SSL双向认证功能:"
+    if [ -f $HTTPSDAV_ROOT/conf/.tpl/ssl.conf ]; then
+        cat $HTTPSDAV_ROOT/conf/.tpl/ssl.conf > $HTTPSDAV_ROOT/conf/ssl.conf
+	echo '    SSLVerifyClient require' > $HTTPSDAV_ROOT/conf/client.conf
+        $httpsdav $basecommand restart >& /dev/null 2>&1
+        RETVAL=$?
+    fi
+    if [[ $RETVAL -eq 0 ]]; then
+        show_success
+    else
+        show_fail
+    fi
+}
+
+#关闭ssl的双向认证功能
+stop_client_verify() {
+    RETVAL=1
+    echo -n "关闭$prog的SSL双向认证功能:"
+    echo '    SSLVerifyClient none' > $HTTPSDAV_ROOT/conf/client.conf
+    $httpsdav $basecommand restart >& /dev/null 2>&1
+    if [[ $? -eq 0 ]]; then
+        show_success
+    else
+        show_fail
+    fi
+}
+
 #参数调用
 case "$1" in
     start)
-        start
+        if [[ $2 = 'ssl' ]]; then
+            if [[ $3 = 'client_verify' ]]; then
+		        start_client_verify
+            else
+                start_ssl
+            fi
+        else
+            start
+        fi
         ;;
     stop)
-        stop
+        if [[ $2 = 'ssl' ]]; then
+            if [[ $3 = 'client_verify' ]]; then
+                stop_client_verify
+            else
+                stop_ssl
+            fi
+        else
+            stop
+        fi
         ;;
     restart)
         restart
@@ -130,7 +210,7 @@ case "$1" in
         reload
         ;;
     *)
-    echo "请使用: systemctl_httpsdav.sh {start|stop|restart|reload}"
+    echo "请使用: systemctl_httpsdav.sh {start|stop|restart|reload|start ssl|start ssl client_verify|stop ssl|stop ssl client_verify}"
     RETVAL=2
 esac
 

@@ -179,8 +179,8 @@ httpsdav_install() {
         webdav_port=${webdav_port:=$DEFAULT_PORT}
         note_text="输入错误，请重新输入："
         if [ $webdav_port -ge 0 >& /dev/null 1>&2 ]; then
-            if [ $webdav_port -le 8000 -o $webdav_port -ge 65535 ]; then
-                note_text='请选择 8000 ~ 65535 之间的端口号：'
+            if [ $webdav_port -le 8000 -o $webdav_port -ge 9000 ]; then
+                note_text='请选择 8000 ~ 9000 之间的端口号：'
             elif [[ ! `netstat -anlt | grep ":$webdav_port .*LISTEN"` ]]; then
                 break
             else
@@ -236,7 +236,7 @@ httpsdav_install() {
     echo -n "    构建httpsdav的配置文件 ----------------------------------------"
     modulesconf="$HTTPSDAV_ROOT/conf/.tpl/modules-${APPACHE_VERSION}.conf"
     cat $modulesconf > $HTTPSDAV_ROOT/conf/modules.conf
-    cat $HTTPSDAV_ROOT/conf/.tpl/ssl.conf > $HTTPSDAV_ROOT/conf/ssl.conf
+    echo "SSLEngine Off" > $HTTPSDAV_ROOT/conf/ssl.conf
     cat $HTTPSDAV_ROOT/conf/.tpl/client.conf > $HTTPSDAV_ROOT/conf/client.conf
     httpsdavconf="$HTTPSDAV_ROOT/conf/httpsdav.conf"
     echo "ServerName $HOSTNAME" > $httpsdavconf
@@ -258,7 +258,7 @@ httpsdav_install() {
     echo "<Directory \"$webdav_path\">" >> $davconf
     echo "   AuthUserFile \"conf/davs/.$dav_name\"" >> $davconf
     cat $HTTPSDAV_ROOT/conf/.tpl/webdav.conf >> $davconf
-    httpd_path=`which httpd`
+    httpd_path=`which apachectl`
     httpd_path=${httpd_path%%:*}
     rm -fr $HTTPSDAV_ROOT/bin/httpsdav
     ln -s $httpd_path $HTTPSDAV_ROOT/bin/httpsdav
@@ -280,20 +280,27 @@ httpsdav_install() {
         echo -e "\e[33m[\e[31m 失败 \e[33m]\e[0m"
         install_exit
     fi
-    mv $HTTPSDAV_ROOT/conf/.tpl/systemctl_httpsdav.sh $HTTPSDAV_ROOT/systemctl_httpsdav.sh
+    mv $HTTPSDAV_ROOT/conf/.tpl/systemctl_httpsdav.sh $HTTPSDAV_ROOT/my_webdav
 
     echo -e "\n\e[1;35m＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊\e[;32m 安装完成 \e[;35m＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊\n\e[;0m"
     echo "    欢迎使用httpsdav"
     echo "    你的httpsdav(使用SSL加密通道的webdav服务，即ssl+webdav)站点信息："
-    echo "    访问地址：https://$HOST_IP:$webdav_port/$webdav_name"
+    echo "    访问地址：http://$HOST_IP:$webdav_port/$webdav_name"
     echo "    映射目录: $webdav_path/"
     echo "    登录名称：$webdav_login"
     echo "    验证密码：$webdavpwd"
     echo "    管理目录：$HTTPSDAV_ROOT"
-    echo "    你可以在管理目录下执行 ./systemctl_httpsdav.sh start|stop|reload|restart "
-    echo "        ./systemctl_httpsdav.sh start|stop|reload|restart"
+    echo "    如果你要开启SSL加密传输功能，可在管理目录下执行"
+    echo "        ./my_webdav start ssl"
+    echo "    执行成功后，您的站点访问地址就变成了"
+    echo "        https://$HOST_IP:$webdav_port/$webdav_name"
+    echo "    开启后，如果你要关闭ssl功能，重新回到使用http，那么只要执行"
+    echo "        ./my_webdav stop ssl"
+    echo "    就可以了，同时你的站点访问地址也回到了原来的"
+    echo "    你还可以在你的站点目录下使用"
+    echo "        ./my_webdav start|stop|reload|restart"
     echo "    的命令对本机的httpsdav服务程序进行 启动|关闭|重载|重启 的操作"
-    echo "    本软件为绿色软件，你可以在关闭站点后将管理目录移动到安装用户有权限的任意路径下重新启动，不影响站点运行"
+    echo "    本软件为绿色软件，你可以在关闭站点后将管理目录移动到安装用户主目录下的任意路径下重新启动，不影响站点运行"
     echo "    如果你有安装中遇到什么问题或有什么建议和需求，或者使用httpsdav中遇到了什么问题"
     echo "    可以联系我：刘重量;  Email:13439694341@qq.com"
     echo -e "\n\e[1;35m＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊ \e[;32m 祝你生活愉快 \e[;35m＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊\e[0m\n\n"
